@@ -1,5 +1,5 @@
 CFLAGS=-I.. -std=gnu++11 -I.
-LIBS=../Build/bin/x86_64/Debug/libBox2D.a
+LIBS=Build/bin/x86_64/Debug/libBox2D.a
 
 
 test: HelloWorld.cpp cumino.cpp cumino.h
