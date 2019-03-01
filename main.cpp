@@ -258,7 +258,7 @@ int main(int argc, char** argv)
 
 	// The extents are the half-widths of the box.
 	groundBox.SetAsBox(50.0f, 10.0f);
-
+    
 	// Add the ground fixture to the ground body.
 	groundBody->CreateFixture(&groundBox, 0.0f);
 
@@ -285,6 +285,23 @@ int main(int argc, char** argv)
 	// Add the shape to the body.
 	body->CreateFixture(&fixtureDef);
 
+
+    b2CircleShape ballShape;
+    ballShape.m_p.Set(2.0f,3.0f);
+    ballShape.m_radius=7.0f;
+
+    b2FixtureDef ballFDef;
+    ballFDef.shape = &ballShape;
+    ballFDef.density=1.0f;
+    ballFDef.friction=0.3f;
+    b2BodyDef ballBDef;
+    ballBDef.type = b2_dynamicBody;
+    ballBDef.position.Set(1.0f,20.0f);
+    b2Body *ballBody = world.CreateBody(&ballBDef);
+    ballBody->CreateFixture(&ballFDef);
+
+
+    
 	// Prepare for simulation. Typically we use a time step of 1/60 of a
 	// second (60Hz) and 10 iterations. This provides a high quality simulation
 	// in most game scenarios.
