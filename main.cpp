@@ -76,7 +76,6 @@ public:
 	
 	/// Draw a solid circle.
 	virtual void DrawSolidCircle(const b2Vec2& center, float32 radius, const b2Vec2& axis, const b2Color& color){
-        print("solcircl");
 		const float32 k_segments = 16.0f;
 		const float32 k_increment = 2.0f * b2_pi / k_segments;
 		float32 theta = 0.0f;
@@ -214,7 +213,7 @@ int main(int argc, char** argv)
     glClearColor(0.2,0.2,0.2,1);
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL ); // wireframe 2D is not supported
 
-	glViewport(0, 0, SCRW, SCRH);
+	glViewport(0, 0, SCRW*2, SCRH*2);
     float scl=0.2;
     glOrtho(-SCRW/2.f*scl, SCRW/2.f*scl, -SCRH/2.f*scl, SCRH/2.f*scl, 1.f, -1.f);
     
@@ -246,7 +245,7 @@ int main(int argc, char** argv)
 
 	// Define the ground body.
 	b2BodyDef groundBodyDef;
-	groundBodyDef.position.Set(0.0f, -10.0f);
+	groundBodyDef.position.Set(0.0f, -20.0f);
 
 	// Call the body factory which allocates memory for the ground body
 	// from a pool and creates the ground box shape (also from a pool).
@@ -257,7 +256,7 @@ int main(int argc, char** argv)
 	b2PolygonShape groundBox;
 
 	// The extents are the half-widths of the box.
-	groundBox.SetAsBox(50.0f, 10.0f);
+	groundBox.SetAsBox(50.0f, 5.0f);
     
 	// Add the ground fixture to the ground body.
 	groundBody->CreateFixture(&groundBox, 0.0f);
@@ -285,10 +284,10 @@ int main(int argc, char** argv)
 	// Add the shape to the body.
 	body->CreateFixture(&fixtureDef);
 
-
+    //ball
     b2CircleShape ballShape;
     ballShape.m_p.Set(2.0f,3.0f);
-    ballShape.m_radius=7.0f;
+    ballShape.m_radius=2.0f;
 
     b2FixtureDef ballFDef;
     ballFDef.shape = &ballShape;
@@ -300,6 +299,40 @@ int main(int argc, char** argv)
     b2Body *ballBody = world.CreateBody(&ballBDef);
     ballBody->CreateFixture(&ballFDef);
 
+    
+    b2Vec2 verts1[3];
+    verts1[0].Set(0.0f, 0.0f);
+    verts1[1].Set(4.0f, 0.0f);
+    verts1[2].Set(0.0f, 4.0f);
+    b2PolygonShape p1;
+    p1.Set(verts1, 3);
+
+    b2Vec2 verts2[4];
+    verts2[0].Set(0.0f, 0.0f);
+    verts2[1].Set(2.0f, 0.0f);
+    verts2[2].Set(2.0f, 3.0f);    
+    verts2[3].Set(0.0f, 1.5f);
+    b2PolygonShape p2;
+    p2.Set(verts2, 4);
+    
+        
+    const int n=30;
+    for(int i=0;i<n;i++) {
+        // poly stone
+        b2FixtureDef stoneFDef;
+        if(range(0,1)<0.5) {
+            stoneFDef.shape = &p1;
+        } else {
+            stoneFDef.shape = &p2;
+        }
+        stoneFDef.density=2.0f;
+        stoneFDef.friction=0.5f;
+        b2BodyDef stoneBDef;
+        stoneBDef.type = b2_dynamicBody;
+        stoneBDef.position.Set(range(-5,5), range(10,30));
+        b2Body *stoneBody = world.CreateBody(&stoneBDef);
+        stoneBody->CreateFixture(&stoneFDef);
+    }
 
     
 	// Prepare for simulation. Typically we use a time step of 1/60 of a
@@ -309,10 +342,40 @@ int main(int argc, char** argv)
 	int32 velocityIterations = 6;
 	int32 positionIterations = 2;
 
+    int loopcnt=0;
 	// This is our little game loop.
     while( !glfwWindowShouldClose(g_window) ) {
-
+        loopcnt++;
         glfwPollEvents();
+
+        if(loopcnt%37==0) {
+            b2FixtureDef ballFDef;
+            ballFDef.shape = &ballShape;
+            ballFDef.density=1.0f;
+            ballFDef.friction=0.3f;
+            b2BodyDef ballBDef;
+            ballBDef.type = b2_dynamicBody;
+            ballBDef.position.Set(range(-5,5), range(40,50));            
+            b2Body *ballBody = world.CreateBody(&ballBDef);
+            ballBody->CreateFixture(&ballFDef);
+        }
+
+        if(loopcnt%20==0) {
+            // poly stone
+            b2FixtureDef stoneFDef;
+            if(range(0,1)<0.5) {
+                stoneFDef.shape = &p1;
+            } else {
+                stoneFDef.shape = &p2;
+            }
+            stoneFDef.density=2.0f;
+            stoneFDef.friction=0.5f;
+            b2BodyDef stoneBDef;
+            stoneBDef.type = b2_dynamicBody;
+            stoneBDef.position.Set(range(-5,5), range(40,50));            
+            b2Body *stoneBody = world.CreateBody(&stoneBDef);
+            stoneBody->CreateFixture(&stoneFDef);
+        }
         
 		// Instruct the world to perform a single step of simulation.
 		// It is generally best to keep the time step and iterations fixed.
@@ -322,7 +385,7 @@ int main(int argc, char** argv)
 		b2Vec2 position = body->GetPosition();
 		float32 angle = body->GetAngle();
 
-		printf("box %4.2f %4.2f %4.2f\n", position.x, position.y, angle);
+        //		printf("box %4.2f %4.2f %4.2f\n", position.x, position.y, angle);
 
         glClear(GL_COLOR_BUFFER_BIT);
 
