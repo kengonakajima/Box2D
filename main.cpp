@@ -2,7 +2,16 @@
 #include "Box2D/Box2D.h"
 
 #include <stdio.h>
-#include "cumino.h"
+#include "moyai/cumino.h"
+#include "moyai/client.h"
+
+GLFWwindow *g_window;
+const int SCRW=640, SCRH=640;
+
+Keyboard *g_keyboard;
+Mouse *g_mouse;
+double g_last_mouse_x,g_last_mouse_y;
+double g_wheel_yofs;
 
 class DebugDrawer : public b2Draw{
 public:
@@ -53,6 +62,43 @@ public:
 
 
 
+void glfw_error_cb( int code, const char *desc ) {
+    print("glfw_error_cb. code:%d desc:'%s'", code, desc );
+}
+void fbsizeCallback( GLFWwindow *window, int w, int h ) {
+    print("fbsizeCallback: %d,%d",w,h);
+#ifndef __linux__
+	glViewport(0, 0, w, h);
+#endif    
+}
+void winclose_callback(GLFWwindow *w) {
+    exit(0);    
+}
+void keyboardCallback( GLFWwindow *window, int key, int scancode, int action, int mods ) {
+    //    print("keyboardCallback: %d %d %d %d",key,scancode,action,mods);
+    g_keyboard->update( key, action, mods & GLFW_MOD_SHIFT, mods & GLFW_MOD_CONTROL, mods & GLFW_MOD_ALT );
+    switch(key) {
+    case GLFW_KEY_ENTER:
+        break;
+    }
+}
+void mouseButtonCallback( GLFWwindow *window, int button, int action, int mods ) {
+    //    print("mousebutton: %d %d %d",button,action,mods);
+    g_mouse->updateButton( button, action, mods & GLFW_MOD_SHIFT, mods & GLFW_MOD_CONTROL, mods & GLFW_MOD_ALT );
+}
+void cursorPosCallback( GLFWwindow *window, double x, double y ) {
+    g_last_mouse_x+=x-SCRW/2;
+    g_last_mouse_y+=y-SCRH/2;
+    if(g_last_mouse_x<0) g_last_mouse_x=0; 
+    if(g_last_mouse_x>=SCRW)g_last_mouse_x=SCRW;
+    if(g_last_mouse_y<0)g_last_mouse_y=0;
+    if(g_last_mouse_y>=SCRH)g_last_mouse_y=SCRH;
+}
+void scrollCallback( GLFWwindow *window, double xofs, double yofs) {
+    //    print("scrollcallback: %f %f",xofs, yofs);
+    g_wheel_yofs=yofs;
+}
+
     
 // This is a simple example of building and running a simulation
 // using Box2D. Here we create a large ground box and a small dynamic
@@ -64,6 +110,41 @@ int main(int argc, char** argv)
 	B2_NOT_USED(argc);
 	B2_NOT_USED(argv);
 
+    if( !glfwInit() ) {
+        print("can't init glfw");
+        exit(1);
+    }
+    glfwSetErrorCallback( glfw_error_cb );
+    g_window =  glfwCreateWindow( SCRW, SCRH, "Space Sweeper", NULL, NULL );
+    if(g_window == NULL ) {
+        print("can't open glfw window");
+        glfwTerminate();
+        exit(1);
+    }
+    glfwMakeContextCurrent(g_window);
+    glfwSetInputMode(g_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED );
+    glfwSetWindowCloseCallback( g_window, winclose_callback );
+    //    glfwSetInputMode( g_window, GLFW_STICKY_KEYS, GL_TRUE );
+    glfwSwapInterval(1); // set 1 to use vsync.
+
+    glClearColor(0.2,0.2,0.2,1);
+
+    // controls
+    g_keyboard = new Keyboard();
+    glfwSetKeyCallback( g_window, keyboardCallback );
+    g_mouse = new Mouse();
+    glfwSetMouseButtonCallback( g_window, mouseButtonCallback );
+    glfwSetCursorPosCallback( g_window, cursorPosCallback );
+    glfwSetScrollCallback( g_window, scrollCallback );
+
+    glfwSetFramebufferSizeCallback( g_window, fbsizeCallback );
+    
+
+
+
+    ///////////
+
+    
 	// Define the gravity vector.
 	b2Vec2 gravity(0.0f, -10.0f);
 
