@@ -13,6 +13,9 @@ Mouse *g_mouse;
 double g_last_mouse_x,g_last_mouse_y;
 double g_wheel_yofs;
 
+MoyaiClient *g_moyai_client;
+
+// http://nu-pan.hatenablog.com/entry/20130916/1379339117
 class DebugDrawer : public b2Draw{
 public:
 	DebugDrawer(){
@@ -21,40 +24,124 @@ public:
 	virtual ~DebugDrawer(){}
 
     virtual void DrawPolygon(const b2Vec2* vertices, int32 vertexCount, const b2Color& color){
-        print("poly %d",vertexCount);
-        for(int i=0;i<vertexCount;i++) {
-            print("  (%f,%f)",vertices[i].x,vertices[i].y);
-        }
+		glColor3f(color.r, color.g, color.b);
+		glBegin(GL_LINE_LOOP);
+		for (int32 i = 0; i < vertexCount; ++i)
+		{
+			glVertex2f(vertices[i].x, vertices[i].y);
+		}
+		glEnd();
+        
 	}
 
 	/// Draw a solid closed polygon provided in CCW order.
 	virtual void DrawSolidPolygon(const b2Vec2* vertices, int32 vertexCount, const b2Color& color){
-        print("solpoly");
+		glEnable(GL_BLEND);
+		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glColor4f(0.5f * color.r, 0.5f * color.g, 0.5f * color.b, 0.5f);
+		glBegin(GL_TRIANGLE_FAN);
+		for (int32 i = 0; i < vertexCount; ++i)
+		{
+			glVertex2f(vertices[i].x, vertices[i].y);
+		}
+		glEnd();
+		glDisable(GL_BLEND);
+
+		glColor4f(color.r, color.g, color.b, 1.0f);
+		glBegin(GL_LINE_LOOP);
+		for (int32 i = 0; i < vertexCount; ++i)
+		{
+			glVertex2f(vertices[i].x, vertices[i].y);
+		}
+		glEnd();
 	}
 
 
 	/// Draw a circle.
 	virtual void DrawCircle(const b2Vec2& center, float32 radius, const b2Color& color){
-        print("circl");        
+		const float32 k_segments = 16.0f;
+		const float32 k_increment = 2.0f * b2_pi / k_segments;
+		float32 theta = 0.0f;
+		glColor3f(color.r, color.g, color.b);
+		glBegin(GL_LINE_LOOP);
+		for (int32 i = 0; i < k_segments; ++i)
+		{
+			b2Vec2 v = center + radius * b2Vec2(cosf(theta), sinf(theta));
+			glVertex2f(v.x, v.y);
+			theta += k_increment;
+		}
+		glEnd();
+        
 	}
 	
 	/// Draw a solid circle.
 	virtual void DrawSolidCircle(const b2Vec2& center, float32 radius, const b2Vec2& axis, const b2Color& color){
-        print("solcircl");        
+        print("solcircl");
+		const float32 k_segments = 16.0f;
+		const float32 k_increment = 2.0f * b2_pi / k_segments;
+		float32 theta = 0.0f;
+		glEnable(GL_BLEND);
+		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glColor4f(0.5f * color.r, 0.5f * color.g, 0.5f * color.b, 0.5f);
+		glBegin(GL_TRIANGLE_FAN);
+		for (int32 i = 0; i < k_segments; ++i)
+		{
+			b2Vec2 v = center + radius * b2Vec2(cosf(theta), sinf(theta));
+			glVertex2f(v.x, v.y);
+			theta += k_increment;
+		}
+		glEnd();
+		glDisable(GL_BLEND);
+
+		theta = 0.0f;
+		glColor4f(color.r, color.g, color.b, 1.0f);
+		glBegin(GL_LINE_LOOP);
+		for (int32 i = 0; i < k_segments; ++i)
+		{
+			b2Vec2 v = center + radius * b2Vec2(cosf(theta), sinf(theta));
+			glVertex2f(v.x, v.y);
+			theta += k_increment;
+		}
+		glEnd();
+
+		b2Vec2 p = center + radius * axis;
+		glBegin(GL_LINES);
+		glVertex2f(center.x, center.y);
+		glVertex2f(p.x, p.y);
+		glEnd();
+        
 	}
 
 	/// Draw a line segment.
 	virtual void DrawSegment(const b2Vec2& p1, const b2Vec2& p2, const b2Color& color){
-        print("seg");        
+		glColor3f(color.r, color.g, color.b);
+		glBegin(GL_LINES);
+		glVertex2f(p1.x, p1.y);
+		glVertex2f(p2.x, p2.y);
+		glEnd();
 	}
 
 	/// Draw a transform. Choose your own length scale.
 	/// @param xf a transform.
 	virtual void DrawTransform(const b2Transform& xf){
-        print("tr");        
+		b2Vec2 p1 = xf.p, p2;
+		const float32 k_axisScale = 0.4f;
+		glBegin(GL_LINES);
+	
+		glColor3f(1.0f, 0.0f, 0.0f);
+		glVertex2f(p1.x, p1.y);
+		p2 = p1 + k_axisScale * xf.q.GetXAxis();
+		glVertex2f(p2.x, p2.y);
+
+		glColor3f(0.0f, 1.0f, 0.0f);
+		glVertex2f(p1.x, p1.y);
+		p2 = p1 + k_axisScale * xf.q.GetYAxis();
+		glVertex2f(p2.x, p2.y);
+
+		glEnd();
 	}
     virtual void DrawPoint(const b2Vec2& p, float32 size, const b2Color& color) {
-        print("pt");        
+        print("point: %f %f ",p.x,p.y);        
     }
 
     
@@ -67,9 +154,6 @@ void glfw_error_cb( int code, const char *desc ) {
 }
 void fbsizeCallback( GLFWwindow *window, int w, int h ) {
     print("fbsizeCallback: %d,%d",w,h);
-#ifndef __linux__
-	glViewport(0, 0, w, h);
-#endif    
 }
 void winclose_callback(GLFWwindow *w) {
     exit(0);    
@@ -115,20 +199,25 @@ int main(int argc, char** argv)
         exit(1);
     }
     glfwSetErrorCallback( glfw_error_cb );
-    g_window =  glfwCreateWindow( SCRW, SCRH, "Space Sweeper", NULL, NULL );
+    g_window =  glfwCreateWindow( SCRW, SCRH, "Space Miner Factory", NULL, NULL );
     if(g_window == NULL ) {
         print("can't open glfw window");
         glfwTerminate();
         exit(1);
     }
     glfwMakeContextCurrent(g_window);
-    glfwSetInputMode(g_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED );
+    //    glfwSetInputMode(g_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED );
     glfwSetWindowCloseCallback( g_window, winclose_callback );
     //    glfwSetInputMode( g_window, GLFW_STICKY_KEYS, GL_TRUE );
     glfwSwapInterval(1); // set 1 to use vsync.
 
     glClearColor(0.2,0.2,0.2,1);
+    glPolygonMode( GL_FRONT_AND_BACK, GL_FILL ); // wireframe 2D is not supported
 
+	glViewport(0, 0, SCRW, SCRH);
+    float scl=0.2;
+    glOrtho(-SCRW/2.f*scl, SCRW/2.f*scl, -SCRH/2.f*scl, SCRH/2.f*scl, 1.f, -1.f);
+    
     // controls
     g_keyboard = new Keyboard();
     glfwSetKeyCallback( g_window, keyboardCallback );
@@ -139,6 +228,7 @@ int main(int argc, char** argv)
 
     glfwSetFramebufferSizeCallback( g_window, fbsizeCallback );
     
+    g_moyai_client = new MoyaiClient(g_window, SCRW, SCRH );
 
 
 
@@ -203,8 +293,10 @@ int main(int argc, char** argv)
 	int32 positionIterations = 2;
 
 	// This is our little game loop.
-	for (int32 i = 0; i < 60; ++i)
-	{
+    while( !glfwWindowShouldClose(g_window) ) {
+
+        glfwPollEvents();
+        
 		// Instruct the world to perform a single step of simulation.
 		// It is generally best to keep the time step and iterations fixed.
 		world.Step(timeStep, velocityIterations, positionIterations);
@@ -213,9 +305,14 @@ int main(int argc, char** argv)
 		b2Vec2 position = body->GetPosition();
 		float32 angle = body->GetAngle();
 
-		printf("%4.2f %4.2f %4.2f\n", position.x, position.y, angle);
+		printf("box %4.2f %4.2f %4.2f\n", position.x, position.y, angle);
 
-        world.DrawDebugData();        
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        world.DrawDebugData();
+
+        glfwSwapBuffers(g_window);
+        glFlush();
 	}
 
 	// When the world destructor is called, all bodies and joints are freed. This can
